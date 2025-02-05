@@ -19,6 +19,6 @@ app.add_middleware(
     allow_methods=["*"],  # 許可するHTTPメソッド
     allow_headers=["*"],  # 許可するHTTPヘッダー
 )
-@app.get("/")
+@app.get("/test")
 async def root():
     return {"message": "Hello World"}
