@@ -25,6 +25,11 @@ app.add_middleware(
     allow_headers=["*"],  # 許可するHTTPヘッダー
 )
 
+# 動作確認後に追加（何かあったらここが原因？）
+@app.get("/test")
+async def root():
+    return {"message": "Hello World"}
+
 # フロントエンドからのリクエストデータ型を定義（Pydantic 使用）
 class JANRequest(BaseModel):
     jan_code: str  # JANコード（13桁の文字列）
