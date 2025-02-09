@@ -26,6 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 動作確認後に追加（何かあったらここが原因？）
+@app.get("/test")
+async def root():
+    return {"message": "Hello World"}
+
 class JANRequest(BaseModel):
     jan_code: str
 
