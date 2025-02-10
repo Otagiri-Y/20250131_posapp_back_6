@@ -34,8 +34,7 @@ class JANRequest(BaseModel):
     jan_code: str
 
 class AddRequest(BaseModel):
-    jan_codes: List[str]
-    cashier_code: str = "9999999999"
+    jan_codes: List[str]  # `cashier_code` を削除
 
 class PurchaseRequest(BaseModel):
     transaction_id: int
@@ -57,8 +56,8 @@ async def add_products(request: AddRequest, db: AsyncSession = Depends(get_db)):
     取引情報を作成し、商品を追加する API
     """
     try:
-        # 取引を作成
-        transaction_id = await create_transaction(db, request.cashier_code)
+        # `cashier_code` を固定で渡す
+        transaction_id = await create_transaction(db)
 
         details = []
         detail_id = 1

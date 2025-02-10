@@ -16,11 +16,10 @@ async def search_product(db: AsyncSession, jan_code: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# 取引テーブルの作成（最後にTOTAL_AMTを使うために重要）
-async def create_transaction(db: AsyncSession, cashier_code: str):
+async def create_transaction(db: AsyncSession):
     """
     新しい取引情報を m_product_joe_trd に追加する
-    - 取引一意キー (TRD_ID) を生成
+    - `cashier_code` を固定 (`9999999999`)
     """
     try:
         query = text("SELECT COALESCE(MAX(TRD_ID), 0) + 1 AS new_id FROM m_product_joe_trd")
@@ -35,7 +34,7 @@ async def create_transaction(db: AsyncSession, cashier_code: str):
         await db.execute(insert_query, {
             "trd_id": transaction_id,
             "datetime": datetime.now(),
-            "cashier_code": cashier_code,
+            "cashier_code": "9999999999",  # 固定値に変更
             "store_code": 30,
             "pos_id": 90,
             "total_amount": 0
@@ -46,7 +45,6 @@ async def create_transaction(db: AsyncSession, cashier_code: str):
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# 取引明細テーブル（購入リスト）を作成
 async def add_transaction_detail(db: AsyncSession, transaction_id: int, detail_id: int, product: dict):
     """
     取引明細 (m_product_joe_dtl) に商品を追加する
@@ -70,7 +68,6 @@ async def add_transaction_detail(db: AsyncSession, transaction_id: int, detail_i
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-# 取引テーブルのTOTAL_AMTを更新し、合計金額を返す
 async def update_transaction_total(db: AsyncSession, transaction_id: int):
     """
     取引の合計金額を更新する
