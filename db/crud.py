@@ -16,20 +16,17 @@ async def search_product(db: AsyncSession, jan_code: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+# 取引テーブルの作成（最後にTOTAL_AMTを使うために重要）
 async def create_transaction(db: AsyncSession, cashier_code: str):
     """
     新しい取引情報を m_product_joe_trd に追加する
     - 取引一意キー (TRD_ID) を生成
-    - 取引日付（DATETIME）、レジ担当者コード（EMP_CD）、店舗コード（STORE_CD）、POS機能ID（POS_NO）、合計金額（TOTAL_AMT）を登録
-    - 取引一意キーを返す
     """
     try:
-        # 取引一意キーの最大値を取得し、インクリメント
         query = text("SELECT COALESCE(MAX(TRD_ID), 0) + 1 AS new_id FROM m_product_joe_trd")
         result = await db.execute(query)
         transaction_id = result.scalar()
 
-        # 取引情報を挿入
         insert_query = text("""
             INSERT INTO m_product_joe_trd (TRD_ID, DATETIME, EMP_CD, STORE_CD, POS_NO, TOTAL_AMT)
             VALUES (:trd_id, :datetime, :cashier_code, :store_code, :pos_id, :total_amount)
@@ -41,7 +38,7 @@ async def create_transaction(db: AsyncSession, cashier_code: str):
             "cashier_code": cashier_code,
             "store_code": 30,
             "pos_id": 90,
-            "total_amount": 0  # 初期値 0
+            "total_amount": 0
         })
         await db.commit()
         return transaction_id
@@ -49,6 +46,7 @@ async def create_transaction(db: AsyncSession, cashier_code: str):
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+# 取引明細テーブル（購入リスト）を作成
 async def add_transaction_detail(db: AsyncSession, transaction_id: int, detail_id: int, product: dict):
     """
     取引明細 (m_product_joe_dtl) に商品を追加する
@@ -72,11 +70,20 @@ async def add_transaction_detail(db: AsyncSession, transaction_id: int, detail_i
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-async def update_transaction_total(db: AsyncSession, transaction_id: int, total_price: int):
+# 取引テーブルのTOTAL_AMTを更新し、合計金額を返す
+async def update_transaction_total(db: AsyncSession, transaction_id: int):
     """
     取引の合計金額を更新する
     """
     try:
+        # 取引明細から合計金額を計算
+        query = text("""
+            SELECT COALESCE(SUM(PRD_PRICE), 0) FROM m_product_joe_dtl WHERE TRD_ID = :trd_id
+        """)
+        result = await db.execute(query, {"trd_id": transaction_id})
+        total_price = result.scalar()
+
+        # 合計金額を更新
         update_query = text("""
             UPDATE m_product_joe_trd SET TOTAL_AMT = :total_price WHERE TRD_ID = :trd_id
         """)
@@ -86,6 +93,8 @@ async def update_transaction_total(db: AsyncSession, transaction_id: int, total_
             "trd_id": transaction_id
         })
         await db.commit()
+
+        return total_price
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
