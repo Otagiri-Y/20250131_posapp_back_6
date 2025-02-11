@@ -19,7 +19,6 @@ async def search_product(db: AsyncSession, jan_code: str):
 async def create_transaction(db: AsyncSession):
     """
     新しい取引情報を m_product_joe_trd に追加する
-    - `cashier_code` を固定 (`9999999999`)
     """
     try:
         query = text("SELECT COALESCE(MAX(TRD_ID), 0) + 1 AS new_id FROM m_product_joe_trd")
@@ -34,7 +33,7 @@ async def create_transaction(db: AsyncSession):
         await db.execute(insert_query, {
             "trd_id": transaction_id,
             "datetime": datetime.now(),
-            "cashier_code": "9999999999",  # 固定値に変更
+            "cashier_code": "9999999999",
             "store_code": 30,
             "pos_id": 90,
             "total_amount": 0
@@ -43,6 +42,7 @@ async def create_transaction(db: AsyncSession):
         return transaction_id
     except Exception as e:
         await db.rollback()
+        print(f"Database error: {str(e)}") 
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 async def add_transaction_detail(db: AsyncSession, transaction_id: int, detail_id: int, product: dict):

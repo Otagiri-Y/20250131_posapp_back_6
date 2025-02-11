@@ -33,11 +33,8 @@ async def root():
 class JANRequest(BaseModel):
     jan_code: str
 
-class AddRequest(BaseModel):
-    jan_codes: List[str]  # `cashier_code` を削除
-
-class PurchaseRequest(BaseModel):
-    transaction_id: int
+class BuyRequest(BaseModel):
+    jan_codes: List[str]  # 購入する商品のJANコードリスト
 
 @app.post("/search")
 async def search_product_api(request: JANRequest, db: AsyncSession = Depends(get_db)):
@@ -50,13 +47,13 @@ async def search_product_api(request: JANRequest, db: AsyncSession = Depends(get
     else:
         raise HTTPException(status_code=404, detail="Product not found")
 
-@app.post("/add")
-async def add_products(request: AddRequest, db: AsyncSession = Depends(get_db)):
+@app.post("/buy")
+async def buy_products(request: BuyRequest, db: AsyncSession = Depends(get_db)):
     """
-    取引情報を作成し、商品を追加する API
+    取引を作成し、商品を追加して、合計金額を返す API
     """
     try:
-        # `cashier_code` を固定で渡す
+        # 取引情報を作成
         transaction_id = await create_transaction(db)
 
         details = []
@@ -65,9 +62,9 @@ async def add_products(request: AddRequest, db: AsyncSession = Depends(get_db)):
         for jan_code in request.jan_codes:
             product = await search_product(db, jan_code)
             if not product:
-                raise HTTPException(status_code=404, detail=f"Product with JAN {jan_code} not found")
+                raise HTTPException(status_code=404, detail=f"商品 {jan_code} が見つかりません")
 
-            # 取引明細を追加
+            # 取引明細に追加
             await add_transaction_detail(db, transaction_id, detail_id, product)
 
             details.append({
@@ -80,24 +77,14 @@ async def add_products(request: AddRequest, db: AsyncSession = Depends(get_db)):
             })
             detail_id += 1
 
+        # 合計金額を計算し、取引情報を更新
+        total_price = await update_transaction_total(db, transaction_id)
+
         return {
             "transaction_id": transaction_id,
+            "total_price": total_price,
             "details": details
         }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/purchase")
-async def purchase_products(request: PurchaseRequest, db: AsyncSession = Depends(get_db)):
-    """
-    取引の合計金額を更新する API
-    """
-    try:
-        # 取引一意キーで合計金額を計算
-        total_price = await update_transaction_total(db, request.transaction_id)
-
-        return {"transaction_id": request.transaction_id, "total_price": total_price}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
